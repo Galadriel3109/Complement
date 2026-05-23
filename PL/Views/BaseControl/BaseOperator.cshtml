@@ -1,0 +1,532 @@
+﻿@model List<ML.Operator.RouteHeader>
+@{
+    ViewData["Title"] = "Base Operator";
+
+    var rutasJson = new List<dynamic>();
+    if (Model != null)
+    {
+        foreach (var r in Model)
+        {
+            rutasJson.Add(new
+            {
+                Route = r,
+                Json = System.Text.Json.JsonSerializer.Serialize(r)
+            });
+        }
+    }
+}
+
+<div class="container-fluid mt-1 px-2">
+
+    <h2 class="mb-4 text-primary fw-bold">Base Operator - Rutas Abiertas</h2>
+
+    <form id="token-form">
+        @Html.AntiForgeryToken()
+    </form>
+
+    <div class="row g-1">
+        <div class="col-12 col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                    <h5 class="mb-0 fs-6 fw-semibold">Rutas disponibles</h5>
+                    <button id="btnOrdenar" type="button" class="btn btn-sm btn-light" title="Ordenar rutas">
+                        <i class="bi bi-sort-down text-primary"></i>
+                    </button>
+                </div>
+                <div class="card-body p-2" style="max-height: 75vh; overflow-y: auto;">
+                    <div id="rutasList" class="list-group small">
+                        @if (Model != null && Model.Count > 0)
+                        {
+                            foreach (var r in rutasJson)
+                            {
+                                string clase = r.Route.Descripcion?.Trim().ToLower() switch
+                                {
+                                    "ruta asignada" => "route-asignada",
+                                    "ruta cerrada" => "route-cerrada",
+                                    "ruta abierta" => "route-abierta",
+                                    "ruta finalizada" => "route-finalizada",
+                                    _ => "route-no-listado"
+                                };
+
+                                <div class="card mb-2 ruta-card @clase"
+                                     data-route='@Html.Raw(r.Json)'
+                                     style="cursor:pointer;">
+                                    <div class="card-body py-2 px-3">
+                                        <h6 class="card-title mb-1 fw-bold">@r.Route.NomOpe</h6>
+                                        <p class="card-text mb-1"><strong>Carga:</strong> @r.Route.CarSal</p>
+                                        <p class="card-text mb-0"><strong>Fecha:</strong> @r.Route.FecCar</p>
+                                        <p class="card-text mb-0"><strong>Estatus:</strong> @r.Route.Descripcion</p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted">No hay rutas disponibles.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-9">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0 fs-6 fw-semibold text-secondary">Órdenes</h5>
+                </div>
+                <div class="card-body" style="max-height: 75vh; overflow-y: auto;">
+                    <div id="detalleRuta">
+                        <p class="text-muted">Selecciona una ruta para ver sus órdenes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detalleOrdenModal" tabindex="-1" aria-labelledby="detalleOrdenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detalleOrdenModalLabel">Detalle de Orden</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="detalleOrdenModalBody">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="overlay" class="overlay d-none">
+    <div class="spinner-border text-light"></div>
+</div>
+
+
+@section Styles {
+    <style>
+        .route-card-wrapper {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .route-card {
+            display: flex;
+            border-radius: 1rem;
+            /* quitar fondo blanco aquí */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: all 0.2s ease-in-out;
+            overflow: hidden;
+        }
+
+            .route-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+            }
+
+        .route-card-band {
+            width: 8px;
+            background: #dee2e6;
+        }
+
+        .route-card-content {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            background: transparent;
+        }
+
+        /* Colores según clase */
+        .route-neutral .route-card-band {
+            background: #dee2e6 !important;
+        }
+
+        .route-neutral .route-card-content {
+            background: #f8f9fa !important;
+        }
+
+        .route-gray .route-card-band {
+            background: #6c757d !important;
+        }
+
+        .route-gray .route-card-content {
+            background: #e9ecef !important;
+        }
+
+        .route-green .route-card-band {
+            background: #198754 !important;
+        }
+
+        .route-green .route-card-content {
+            background: #d4edda !important;
+        }
+
+        .route-yellow .route-card-band {
+            background: #ffc107 !important;
+        }
+
+        .route-yellow .route-card-content {
+            background: #fff8e1 !important;
+        }
+
+        .route-orange .route-card-band {
+            background: #fd7e14 !important;
+        }
+
+        .route-orange .route-card-content {
+            background: #fff4e6 !important;
+        }
+
+        .route-red .route-card-band {
+            background: #dc3545 !important;
+        }
+
+        .route-red .route-card-content {
+            background: #f8d7da !important;
+        }
+
+        .route-asignada {
+            border-left: 8px solid #6c757d;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        }
+
+        .route-cerrada {
+            border-left: 8px solid #87CEFA;
+            background: linear-gradient(135deg, #E0F7FF, #B3ECFF);
+        }
+
+        .route-abierta {
+            border-left: 8px solid #ff922b;
+            background: linear-gradient(135deg, #fff4e6, #ffe8cc);
+        }
+
+        .route-finalizada {
+            border-left: 8px solid #198754;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        }
+
+        .route-no-listado {
+            border-left: 8px solid #f08080;
+            background: linear-gradient(135deg, #fce8e8, #f5c2c2);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+    </style>
+}
+
+
+@section Scripts {
+    <script>
+        let currentCarSal = null;
+        let currentPtoAlm = null;
+
+        function showOverlay() {
+            document.getElementById("overlay").classList.remove("d-none");
+        }
+
+        function hideOverlay() {
+            document.getElementById("overlay").classList.add("d-none");
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const rutasList = document.getElementById("rutasList");
+
+            rutasList.addEventListener("click", function (e) {
+                const card = e.target.closest(".ruta-card");
+                if (!card) return;
+
+                const route = JSON.parse(card.dataset.route);
+                cargarDetalleRuta(route);
+
+                rutasList.querySelectorAll(".ruta-card").forEach(c => c.classList.remove("active"));
+                card.classList.add("active");
+            });
+
+            document.getElementById("btnOrdenar").addEventListener("click", () => {
+                location.reload(); // mantén simple: recarga para reordenar si quieres, o adapta tu lógica de sort
+            });
+        });
+
+        function cargarDetalleRuta(route) {
+            const token = document.querySelector('#token-form input[name="__RequestVerificationToken"]').value;
+
+            const container = document.getElementById("detalleRuta");
+            container.innerHTML = "";
+
+            if (route.Descripcion?.trim().toLowerCase() === 'ruta finalizada') {
+                const btnWrapper = document.createElement('div');
+                btnWrapper.className = 'mb-3 d-flex gap-2';
+
+                const btnAceptar = document.createElement('button');
+                btnAceptar.className = 'btn btn-success';
+                btnAceptar.textContent = 'Aceptar';
+                btnAceptar.onclick = () => confirmarAccion(route, 'aceptar');
+
+                const btnRechazar = document.createElement('button');
+                btnRechazar.className = 'btn btn-danger';
+                btnRechazar.textContent = 'Rechazar';
+                btnRechazar.onclick = () => confirmarAccion(route, 'rechazar');
+
+                btnWrapper.appendChild(btnAceptar);
+                btnWrapper.appendChild(btnRechazar);
+                container.appendChild(btnWrapper);
+            }
+
+            fetch("@Url.Action("BaseOperatorGetOrdersPerRoute", "BaseControl")", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "RequestVerificationToken": token
+                },
+                body: JSON.stringify(route)
+            })
+            .then(async resp => {
+                if (!resp.ok) {
+                    const text = await resp.text()
+                    throw new Error(text)
+                }
+                return resp.json()
+            })
+            .then(data => {
+                
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = "<p>No hay órdenes para esta carga.</p>";
+                    return;
+                }
+
+                data.forEach(ord => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'route-card-wrapper mb-2';
+
+                    const card = document.createElement('div');
+                    card.className = 'route-card';
+
+                    // Banda izquierda
+                    const band = document.createElement('div');
+                    band.className = 'route-card-band';
+
+                    // Contenido
+                    const content = document.createElement('div');
+                    content.className = 'route-card-content';
+
+                    content.innerHTML = `
+                        <div class="row gx-2 gy-1 mb-1 align-items-center">
+                            <div class="col-md-9">
+                                <h4 class="mb-0 fw-semibold">${ord.cliente}</h4>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <small class="text-muted">${ord.fecAct}</small>
+                            </div>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="row gx-2 gy-1">
+                            <div class="col-md-9">
+                                <div class="row gx-2 gy-1 mb-1">
+                                    <div class="col-sm-6"><strong>SCN:</strong> ${ord.numScn}</div>
+                                    <div class="col-sm-6"><strong>Orden:</strong> ${ord.ordRel}</div>
+                                </div>
+                                <div class="row gx-2 gy-1 mb-1">
+                                    <div class="col-sm-6"><strong>Estatus GNX:</strong> ${ord.estatusGnx}</div>
+                                    <div class="col-sm-6"><strong>Estatus Entrega:</strong> ${ord.estatusRuta}</div>
+                                </div>
+                                <div class="row gx-2 gy-1">
+                                    <div class="col-sm-6"><strong>Estatus RT:</strong> ${ord.estatusRT}</div>
+                                    <div class="col-sm-6"><strong>Evento:</strong> ${ord.motivo}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <button type="button" class="btn btn-primary w-100 mb-2" onclick="verDetalleApi('${ord.ordRel}')">
+                                    Ver Detalle
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    card.appendChild(band);
+                    card.appendChild(content);
+                    wrapper.appendChild(card);
+
+                    const clase = obtenerClaseColor(ord);
+                    wrapper.classList.add(clase);
+                    card.classList.add(clase);
+
+                    container.appendChild(wrapper);
+                });
+            })
+            .catch(err => {
+                document.getElementById("detalleRuta").innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            });
+        }
+
+        function confirmarAccion(route, tipo) {
+            const token = document.querySelector('#token-form input[name="__RequestVerificationToken"]').value;
+
+            let titulo, texto, url;
+            if (tipo === 'aceptar') {
+                titulo = '¿Estás seguro de aceptar esta ruta?';
+                texto = 'Esta acción confirmará la ruta seleccionada.';
+                url = '@Url.Action("MultiConfirmation", "BaseControl")';
+            } else if (tipo === 'rechazar') {
+                titulo = '¿Estás seguro de rechazar esta ruta?';
+                texto = 'Esta acción rechazará la ruta seleccionada.';
+                url = '@Url.Action("RejectRoute", "BaseControl")';
+            }
+
+            Swal.fire({
+                title: titulo,
+                text: texto,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+
+                    showOverlay();
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify(route)
+                    })
+                    .then(async resp => {
+                        if (!resp.ok) {
+                            const text = await resp.text();
+                            throw new Error(text);
+                        }
+                        return resp.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Éxito', data.message, 'success').then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', err.message, 'error');
+                    })
+                    .finally(() => {
+                        hideOverlay();
+                    });
+                }
+            });
+        }
+
+        function obtenerClaseColor(ord) {
+            const estatus = ord.estatusRT?.trim().toLowerCase();
+            const motivo = ord.motivo?.trim().toLowerCase();
+
+             console.log('Orden:', ord.ordRel, '| estatusRT:', estatus, '| motivo:', motivo);
+
+
+            if (estatus === 'ruta aun no aceptada') return 'route-neutral';
+            if (estatus === 'ruta trabajandose' && motivo === 'no marcado aun') return 'route-gray';
+            if (
+                (estatus === 'ruta trabajandose' && motivo !== 'no marcado aun') ||
+                (estatus === '1-cerrado' && (
+                    motivo === '1-interfaz entrega para genesix generada' ||
+                    motivo === '4-interfaz retención para genesix generada'
+                ))
+            ) return 'route-green';
+            if (motivo === '3-asn generado') return 'route-yellow';
+            if (motivo === '2-generando asn para wms') return 'route-orange';
+            if (motivo === 'x-esperando interfaz de evento') return 'route-red';
+
+            return 'route-neutral';
+        }
+
+         async function verDetalleApi(ord_rel) {
+            try {
+                const responseCredentials = await fetch("/OracleData/GetCredentials");
+                const dataCredentials = await responseCredentials.json();
+
+                const username = dataCredentials.username;
+                const password = dataCredentials.password;
+
+                const responseEndPoint = await fetch("/OracleData/GetEndPointOLPN");
+                const dataEndPoint = await responseEndPoint.json();
+
+                const finalUrl = dataEndPoint.endPoint.replace("ORDER_RELEASE", encodeURIComponent(ord_rel));
+
+                $.ajax({
+                    url: finalUrl,
+                    method: "GET",
+                    headers: {
+                        "Authorization": "Basic " + btoa(username + ":" + password),
+                        "Content-Type": "application/json"
+                    },
+                    success: function (data) {
+                        if (data && data.results && data.results.length > 0) {
+                            mostrarDetalleEnModal(data.results, ord_rel);
+                        } else {
+                            mostrarDetalleEnModal([], ord_rel);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        const msg = `<div class="text-danger">Error al obtener detalle: ${xhr.status} ${xhr.statusText}</div>`;
+                        document.getElementById("detalleOrdenModalBody").innerHTML = msg;
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('detalleOrdenModal')).show();
+                    }
+                });
+
+            } catch (err) {
+                document.getElementById("detalleOrdenModalBody").innerHTML = `<div class="text-danger">Error inesperado: ${err.message}</div>`;
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('detalleOrdenModal')).show();
+            }
+        }
+
+        function mostrarDetalleEnModal(detalles, ord_rel) {
+            const detallesFiltrados = detalles.filter(d => d.LpnStatus === "Shipped");
+
+            let html = `<h6>Orden: ${ord_rel}</h6><table class="table table-bordered mt-3">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>SKU</th>
+                                <th>OLPN</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            if (detalles.length === 0) {
+                html += `<tr><td colspan="4" class="text-center">No hay detalles disponibles.</td></tr>`;
+            } else {
+                detallesFiltrados.forEach(d => {
+                    html += `
+                                <tr>
+                                    <td>${d.Product}</td>
+                                    <td>${d.Sku}</td>
+                                    <td>${d.Olpn}</td>
+                                    <td>${d.Quantity}</td>
+                                </tr>`;
+                });
+            }
+
+            html += `</tbody></table>`;
+
+            document.getElementById("detalleOrdenModalBody").innerHTML = html;
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('detalleOrdenModal'));
+            modal.show();
+        }
+
+    </script>
+}

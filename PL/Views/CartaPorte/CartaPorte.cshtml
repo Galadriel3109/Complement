@@ -1,0 +1,589 @@
+﻿@{
+    ViewData["Title"] = "Carta Porte";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-1 px-2">
+
+    <h2 class="mb-3 text-primary fw-bold">Carta Porte</h2>
+    <hr />
+
+    <!-- SECCION 1 -->
+    <div class="card mb-3">
+        <div class="card-header fw-bold">1. Elegir carga de salida</div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Almacén</label>
+                <select id="ptoAlm" class="form-select">
+                    <option value="870" >Vallejo</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Carga de salida</label>
+                <input type="text" id="carSal" class="form-control" />
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button id="btnBuscar" class="btn btn-primary w-100">
+                    Buscar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCION 2 -->
+    <div id="secValidacion" class="card mb-3 d-none">
+        <div class="card-header fw-bold">2. Validación de domicilios</div>
+        <div class="card-body">
+            <table id="tblDir" class="table table-bordered table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>NumScn</th>
+                        <th>CodDir</th>
+                        <th>NumExt</th>
+                        <th>NumInt</th>
+                        <th>CveCol</th>
+                        <th>CveMun</th>
+                        <th>CveEst</th>
+                        <th>CveCp</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECCION 3 -->
+    <div id="secFecha" class="card mb-3 d-none">
+        <div class="card-header fw-bold">3. Fecha de salida</div>
+        <div class="card-body col-md-4">
+            <input type="datetime-local" id="fecSal" class="form-control" />
+        </div>
+    </div>
+
+    <!-- SECCION 4 -->
+    <div id="secOperador" class="card mb-3 d-none">
+        <div class="card-header fw-bold">4. Asignar operador</div>
+        <div class="card-body">
+            <button class="btn btn-secondary" onclick="abrirOperadores()">Asignar operador</button>
+            <div class="mt-2 fw-bold" id="lblOperador"></div>
+        </div>
+    </div>
+
+    <!-- SECCION 5 -->
+    <div id="secTransporte" class="card mb-3 d-none">
+        <div class="card-header fw-bold">5. Asignar transporte</div>
+        <div class="card-body">
+            <button class="btn btn-secondary" onclick="abrirTransporte()">Asignar transporte</button>
+            <div class="mt-2 fw-bold" id="lblTransporte"></div>
+        </div>
+    </div>
+
+    <!-- SECCION 6 -->
+    <div id="secGenerar" class="text-end d-none">
+        <button class="btn btn-success btn-lg" onclick="generarCarta()">
+            Generar Carta Porte
+        </button>
+    </div>
+
+</div>
+
+<!-- OVERLAY -->
+<div id="sendOverlay"
+     class="position-fixed top-0 start-0 w-100 h-100 d-none justify-content-center align-items-center"
+     style="background: rgba(0,0,0,0.4); z-index:9999;">
+    <div class="spinner-border text-primary" style="width:60px;height:60px"></div>
+</div>
+
+<!-- MODAL OPERADORES -->
+<div class="modal fade" id="modalOper" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Seleccionar operador</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tblOper" class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>RFC</th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TRANSPORTE -->
+<div class="modal fade" id="modalTrans" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Seleccionar transporte</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tblTrans" class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>NumEco</th>
+                            <th>Placas</th>
+                            <th>Modelo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCorreccion" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Corrección de Dirección</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <h6 class="fw-bold mb-2">Datos Actuales</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">SCN</label>
+                        <input id="corNumScn" class="form-control" disabled>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">CodDir</label>
+                        <input id="corCodDir" class="form-control" disabled>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Calle</label>
+                        <input id="corCalle" class="form-control" disabled>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Num Ext</label>
+                        <input id="corNumExt" class="form-control" disabled>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Num Int</label>
+                        <input id="corNumInt" class="form-control" disabled>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Código Postal</label>
+                        <input type="text" id="corCpActual" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label>Estado</label>
+                        <input type="text" id="corEstadoActual" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label>Municipio</label>
+                        <input type="text" id="corMunicipioActual" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label>Colonia</label>
+                        <input type="text" id="corColoniaActual" class="form-control" disabled>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2">Corrección</h6>
+
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Código Postal</label>
+                        <input id="corCp" class="form-control">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Estado</label>
+                        <input id="corEstado" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Municipio</label>
+                        <input id="corMunicipio" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Colonia</label>
+                        <select id="corColonia" class="form-select">
+                            <option value="">Seleccione colonia</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" id="btnGuardarCorreccion">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let tblOper = null
+        let tblTrans = null
+
+        let scnDirList = []
+        let scnDirSeleccionado = null
+        let queryActual = null
+
+        let infoCpActual  = null
+
+        let operador = null
+        let transporte = null
+
+        function mostrarOverlay() {
+            $("#sendOverlay").removeClass("d-none").addClass("d-flex")
+        }
+        function ocultarOverlay() {
+            $("#sendOverlay").addClass("d-none").removeClass("d-flex")
+        }
+
+        /* ===========================
+           BUSCAR CARGA DE SALIDA
+        =========================== */
+        $("#btnBuscar").click(() => {
+            mostrarOverlay()
+
+            const query = {
+                ptoAlm: $("#ptoAlm").val(),
+                carSal: $("#carSal").val()
+            }
+
+            $.ajax({
+                url: "/CartaPorte/GetLoadInfo",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(query),
+                success: data => {
+                    scnDirList = data
+                    queryActual = query
+
+                    $("#secValidacion").removeClass("d-none")
+                    $("#secFecha").addClass("d-none")
+                    $("#secOperador").addClass("d-none")
+                    $("#secTransporte").addClass("d-none")
+                    $("#secGenerar").addClass("d-none")
+
+                    renderTablaDirecciones()
+                },
+                error: xhr => Swal.fire("Error", xhr.responseJSON?.message, "error"),
+                complete: ocultarOverlay
+            })
+        })
+
+        /* ===========================
+           RENDER TABLA DIRECCIONES
+        =========================== */
+        function renderTablaDirecciones() {
+            let rows = ""
+            let todasOk = true
+
+            scnDirList.forEach((x, i) => {
+                const ok = x.okDireccion === true
+                const clase = ok ? "table-success" : "table-danger"
+                const btn = ok ? "" :
+                    `<button class="btn btn-warning btn-sm" onclick="abrirCorreccion(${i})">Corrección</button>`
+
+                if (!ok) todasOk = false
+
+                rows += `
+                <tr class="${clase}">
+                    <td>${x.numScn}</td>
+                    <td>${x.codDir}</td>
+                    <td>${x.numExt}</td>
+                    <td>${x.numInt}</td>
+                    <td>${x.cveCol}</td>
+                    <td>${x.cveMun}</td>
+                    <td>${x.cveEst}</td>
+                    <td>${x.cveCp}</td>
+                    <td>${btn}</td>
+                </tr>`
+            })
+
+            $("#tblDir tbody").html(rows)
+
+            if (todasOk) {
+                $("#secFecha").removeClass("d-none")
+            }
+        }
+
+        /* ===========================
+           FECHA DE SALIDA
+        =========================== */
+        $("#fecSal").on("change", () => {
+            const seleccionada = new Date($("#fecSal").val())
+            const ahora = new Date()
+
+            if (seleccionada < ahora) {
+                $("#fecSal").val("")
+                Swal.fire("Error", "La fecha debe ser mayor a la actual", "error")
+                return
+            }
+
+            $("#secOperador").removeClass("d-none")
+        })
+
+
+        /* ===========================
+           CORRECCIÓN DIRECCIÓN
+        =========================== */
+        function abrirCorreccion(index) {
+            scnDirSeleccionado = scnDirList[index]
+
+            $("#corCpActual").val(scnDirSeleccionado.cveCp)
+            $("#corEstadoActual").val(scnDirSeleccionado.estCli)
+            $("#corMunicipioActual").val(scnDirSeleccionado.munCli)
+            $("#corColoniaActual").val(scnDirSeleccionado.colCli)
+
+            $("#corNumScn").val(scnDirSeleccionado.numScn)
+            $("#corCodDir").val(scnDirSeleccionado.codDir)
+            $("#corCalle").val(scnDirSeleccionado.calle)
+            $("#corNumExt").val(scnDirSeleccionado.numExt)
+            $("#corNumInt").val(scnDirSeleccionado.numInt)
+
+            $("#corCp").val(scnDirSeleccionado.cveCp)
+            $("#corEstado").val("")
+            $("#corMunicipio").val("")
+            $("#corColonia").html(`<option value="">Seleccione colonia</option>`)
+
+            if (scnDirSeleccionado.okCp) {
+                $("#corCp").prop("disabled", true)
+                cargarInfoPorCp(scnDirSeleccionado.cveCp)
+            } else {
+                $("#corCp").prop("disabled", false)
+            }
+
+            new bootstrap.Modal("#modalCorreccion").show()
+        }
+
+        $("#corCp").on("change", function () {
+            const cp = $(this).val()
+            if (cp) cargarInfoPorCp(cp)
+        })
+
+    function cargarInfoPorCp(cp) {
+            $.post("/CartaPorte/GetColByCodPos", { codPos: cp })
+                .done(resp => {
+                    infoCpActual = resp
+
+                    $("#corEstado").val(resp.estado)
+                    $("#corMunicipio").val(resp.municipio)
+
+                    $("#corColonia").empty()
+                        .append(`<option value="">Seleccione colonia</option>`)
+
+                    resp.colonias.forEach(c => {
+                        $("#corColonia").append(`<option value="${c}">${c}</option>`)
+                    })
+                })
+                .fail(() => {
+                    infoCpActual = null
+                    Swal.fire("Error", "Código postal no válido", "error")
+                })
+        }
+
+
+        $("#btnGuardarCorreccion").click(() => {
+
+            if (!infoCpActual) {
+                Swal.fire("Error", "No hay información válida del CP", "error")
+                return
+            }
+
+            const colonia = $("#corColonia").val()
+            if (!colonia) {
+                Swal.fire("Atención", "Seleccione una colonia", "warning")
+                return
+            }
+
+            scnDirSeleccionado.colCli = colonia
+            scnDirSeleccionado.munCli = infoCpActual.municipio
+            scnDirSeleccionado.cveEst = infoCpActual.cveEstado
+
+            if (!scnDirSeleccionado.okCp) {
+                scnDirSeleccionado.cveCp = $("#corCp").val()
+            }
+
+            $.ajax({
+                url: "/CartaPorte/Maintenance",
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify(scnDirSeleccionado),
+                success: () => {
+                    bootstrap.Modal
+                        .getInstance(document.getElementById("modalCorreccion"))
+                        .hide()
+
+                    volverACargarLoadInfo()
+                },
+                error: xhr => {
+                    Swal.fire(
+                        "Error",
+                        xhr.responseJSON?.message || "Error al guardar",
+                        "error"
+                    )
+                }
+            })
+        })
+
+
+        function volverACargarLoadInfo() {
+            mostrarOverlay()
+
+            $.ajax({
+                url: "/CartaPorte/GetLoadInfo",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(queryActual),
+                success: data => {
+                    scnDirList = data
+                    renderTablaDirecciones()
+                },
+                complete: ocultarOverlay
+            })
+        }
+
+        /* ===========================
+           OPERADORES
+        =========================== */
+        function abrirOperadores() {
+            $.get("/CartaPorte/GetOper", data => {
+                let rows = ""
+                data.forEach(x => {
+                    rows += `
+                    <tr>
+                        <td>${x.rfcOpe}</td>
+                        <td>${x.nomOpe}</td>
+                        <td>${x.tipo}</td>
+                        <td>
+                            <button class="btn btn-success btn-sm"
+                                onclick='selectOper(${JSON.stringify(x)})'>
+                                Elegir
+                            </button>
+                        </td>
+                    </tr>`
+                })
+
+                $("#tblOper tbody").html(rows)
+                if (tblOper) tblOper.destroy()
+                tblOper = $("#tblOper").DataTable()
+
+                new bootstrap.Modal("#modalOper").show()
+            })
+        }
+
+        function selectOper(o) {
+            operador = o
+            $("#lblOperador").text(`${o.nomOpe} (${o.tipo})`)
+            bootstrap.Modal.getInstance(
+                document.getElementById("modalOper")
+            ).hide()
+
+            if (o.tipo === "INTERNO") {
+                $("#secTransporte").removeClass("d-none")
+            } else {
+                $("#secGenerar").removeClass("d-none")
+            }
+        }
+
+        /* ===========================
+           TRANSPORTE
+        =========================== */
+        function abrirTransporte() {
+            $.get("/CartaPorte/GetTrans", data => {
+                let rows = ""
+                data.forEach(x => {
+                    rows += `
+                    <tr>
+                        <td>${x.numEco}</td>
+                        <td>${x.plaVei}</td>
+                        <td>${x.modVei}</td>
+                        <td>
+                            <button class="btn btn-success btn-sm"
+                                onclick='selectTrans(${JSON.stringify(x)})'>
+                                Elegir
+                            </button>
+                        </td>
+                    </tr>`
+                })
+
+                $("#tblTrans tbody").html(rows)
+                if (tblTrans) tblTrans.destroy()
+                tblTrans = $("#tblTrans").DataTable()
+
+                new bootstrap.Modal("#modalTrans").show()
+            })
+        }
+
+        function selectTrans(t) {
+            transporte = t
+            $("#lblTransporte").text(`${t.numEco} - ${t.plaVei}`)
+            bootstrap.Modal.getInstance(
+                document.getElementById("modalTrans")
+            ).hide()
+
+            $("#secGenerar").removeClass("d-none")
+        }
+
+        /* ===========================
+           GENERAR CARTA PORTE
+        =========================== */
+        function generarCarta() {
+            mostrarOverlay()
+
+            const f = new Date($("#fecSal").val())
+            const fecSal =
+                f.getFullYear().toString() +
+                (f.getMonth()+1).toString().padStart(2,"0") +
+                f.getDate().toString().padStart(2,"0") + " " +
+                f.getHours().toString().padStart(2,"0") + ":" +
+                f.getMinutes().toString().padStart(2,"0")
+
+            $.ajax({
+                url: "/CartaPorte/CartaPorteMaker",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    ptoAlm: queryActual.ptoAlm,
+                    carSal: queryActual.carSal,
+                    fecSal: fecSal,
+                    tipo: operador.tipo,
+                    operTda: operador,
+                    traPro: transporte
+                }),
+                    success: msg => {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Correcto",
+                            text: msg,
+                            confirmButtonText: "Aceptar"
+                        }).then(() => {
+                            location.reload()
+                        })
+                    },
+                error: xhr => Swal.fire("Error", xhr.responseJSON?.message, "error"),
+                complete: ocultarOverlay
+            })
+        }
+    </script>
+}
+

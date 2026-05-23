@@ -1,0 +1,283 @@
+﻿@{
+    ViewData["Title"] = "Roles";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-1 px-2">
+    <h2 class="mb-4 text-primary fw-bold">Administración de Roles</h2>
+    <hr />
+
+    <div class="d-flex justify-content-end mb-3">
+        <button class="btn btn-success" onclick="abrirModalRol()">
+            <i class="bi bi-plus-circle"></i> Nuevo Rol
+        </button>
+    </div>
+
+    <div class="table-responsive shadow-sm rounded-3 bg-white p-3">
+        <table id="tablaRoles" class="table table-hover table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Rol</th>
+                    <th>Descripción</th>
+                    <th class="text-center">Pantallas</th>
+                    <th class="text-center">Eliminar</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Alta Rol -->
+<div class="modal fade" id="modalRol">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Nuevo Rol</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input id="txtSubRol" class="form-control mb-2" placeholder="SubRol">
+                <input id="txtDesRol" class="form-control mb-2" placeholder="Descripción">
+
+                <button class="btn btn-success w-100" onclick="guardarRol()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pantallas -->
+<div class="modal fade" id="modalScreens">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 id="titleScreens">Pantallas</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tablaScreens" class="table table-hover table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Título</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="sendOverlay"
+     class="position-fixed top-0 start-0 w-100 h-100 d-none justify-content-center align-items-center"
+     style="background: rgba(0,0,0,0.4); z-index:9999;">
+    <div class="spinner-border text-primary" style="width:60px;height:60px"></div>
+</div>
+
+@section Scripts {
+    <script>
+        let tablaRoles = null
+        let tablaScreens = null
+        let rolActual = null
+        let modalScreens = null
+
+        document.addEventListener("DOMContentLoaded", cargarRoles)
+
+        function mostrarOverlay() {
+            $("#sendOverlay").removeClass("d-none").addClass("d-flex")
+        }
+        function ocultarOverlay() {
+            $("#sendOverlay").addClass("d-none").removeClass("d-flex")
+        }
+
+        function cargarRoles() {
+            mostrarOverlay()
+                
+            if (tablaRoles) tablaRoles.destroy()
+
+            $.get("/User/GetRoles", data => {
+
+                let rows = ""
+
+                data.forEach(r => {
+                    rows += `
+                    <tr>
+                        <td>${r.subRol}</td>
+                        <td>${r.desRol}</td>
+                        <td class="text-center">
+                            <button class="btn btn-primary btn-sm"
+                                onclick="verPantallas('${r.subRol}')">
+                                Ver
+                            </button>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-danger btn-sm"
+                                onclick="eliminarRol('${r.subRol}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`
+                })
+
+                $("#tablaRoles tbody").html(rows)
+
+                tablaRoles = $("#tablaRoles").DataTable({
+                    language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-MX.json" }
+                })
+
+            }).always(ocultarOverlay)
+        }
+
+        function abrirModalRol() {
+            $("#txtSubRol").val("")
+            $("#txtDesRol").val("")
+            new bootstrap.Modal(document.getElementById("modalRol")).show()
+        }
+
+        function guardarRol() {
+            const subRol = $("#txtSubRol").val()
+            const desRol = $("#txtDesRol").val()
+
+            if (!subRol || !desRol)
+                return Swal.fire("Atención", "Completa los campos", "warning")
+
+            mostrarOverlay()
+
+            $.ajax({
+                url: "/User/AddRol",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ subRol, desRol }),
+                success: () => {
+                    bootstrap.Modal.getInstance(document.getElementById("modalRol")).hide()
+                    cargarRoles()
+                    Swal.fire("Éxito", "Rol agregado", "success")
+                },
+                error: xhr => Swal.fire("Error", xhr.responseText, "error"),
+                complete: ocultarOverlay
+            })
+        }
+
+        function eliminarRol(subRol) {
+            Swal.fire({
+                title: "¿Eliminar rol?",
+                icon: "warning",
+                showCancelButton: true
+            }).then(res => {
+
+                if (!res.isConfirmed) return
+
+                mostrarOverlay()
+
+                $.ajax({
+                    url: "/User/DelRol",
+                    type: "DELETE",
+                    contentType: "application/json",
+                    data: JSON.stringify({ subRol }),
+                    success: () => {
+                        cargarRoles()
+                        Swal.fire("Eliminado", "", "success")
+                    },
+                    error: xhr => Swal.fire("Error", xhr.responseText, "error"),
+                    complete: ocultarOverlay
+                })
+            })
+        }
+
+        function verPantallas(subRol) {
+            rolActual = subRol
+
+            $("#titleScreens").text("Pantallas del rol: " + subRol)
+
+            if (modalScreens) {
+                modalScreens.hide()
+            }
+
+            setTimeout(() => {
+                cargarScreens()
+            }, 200)
+        }
+
+        function cargarScreens() {
+            mostrarOverlay()
+
+            if (tablaScreens) {
+                tablaScreens.clear().destroy()
+                tablaScreens = null
+            }
+
+            $("#tablaScreens tbody").empty()
+
+            $.get("/User/GetScreens", { sub_rol: rolActual }, data => {
+
+                let rows = ""
+
+                data.forEach(s => {
+
+                    let estado = s.assigned
+                        ? '<span class="badge bg-success">Asignado</span>'
+                        : '<span class="badge bg-secondary">Disponible</span>'
+
+                    let boton = s.assigned
+                        ? `<button class="btn btn-danger btn-sm"
+                                onclick="quitarScreen('${s.idPant}')">Quitar</button>`
+                        : `<button class="btn btn-success btn-sm"
+                                onclick="agregarScreen('${s.idPant}')">Agregar</button>`
+
+                    rows += `
+                    <tr>
+                        <td>${s.idPant}</td>
+                        <td>${s.title}</td>
+                        <td class="text-center">${estado}</td>
+                        <td class="text-center">${boton}</td>
+                    </tr>`
+                })
+
+                $("#tablaScreens tbody").html(rows)
+
+                tablaScreens = $("#tablaScreens").DataTable({
+                    destroy: true,
+                    pageLength: 10,
+                    language: {
+                        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-MX.json"
+                    }
+                })
+
+                if (!modalScreens) {
+                    modalScreens = new bootstrap.Modal(document.getElementById("modalScreens"))
+                }
+
+                modalScreens.show()
+
+            }).always(ocultarOverlay)
+        }
+
+        function agregarScreen(idPant) {
+            mostrarOverlay()
+
+            $.post("/User/AddScreenToRol", {
+                sub_rol: rolActual,
+                id_pant: idPant
+            }, () => {
+                cargarScreens()
+            }).always(ocultarOverlay)
+        }
+
+        function quitarScreen(idPant) {
+            mostrarOverlay()
+
+            $.ajax({
+                url: `/User/DelScreenToRol?sub_rol=${rolActual}&id_pant=${idPant}`,
+                type: "DELETE",
+                success: () => {
+                    cargarScreens()
+                },
+                error: xhr => Swal.fire("Error", xhr.responseText, "error"),
+                complete: ocultarOverlay
+            })
+        }
+    </script>
+}

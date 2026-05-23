@@ -1,0 +1,281 @@
+﻿@model List<ML.TrackingManager.TrackingManager>
+
+@{
+    ViewData["Title"] = "Regresos Pendientes";
+}
+
+<div class="container-fluid mt-1 px-2">
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
+        <h2 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-truck"></i> Regresos de ruta pendientes
+        </h2>
+    </div>
+    <hr />
+
+    @if (!string.IsNullOrEmpty(ViewBag.Error as string))
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle"></i> @ViewBag.Error
+        </div>
+    }
+
+    <div class="row">
+        <div class="col d-flex justify-content-end">
+            <form method="get" asp-controller="TrackingManager" asp-action="ReturnedOrdersExcel">
+                <button type="submit" class="btn btn-success px-4">
+                    <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                </button>
+            </form>
+        </div>
+    </div>
+    <br />
+    <hr />
+        @if (Model != null && Model.Count > 0)
+    {
+        foreach (var item in Model)
+        {
+            var color = item.rt_stat == "1" || item.rt_stat == "4"
+            ? "bg-success"
+            : item.rt_stat == "X"
+            ? "bg-danger"
+            : "bg-warning";
+
+            <div class="card-container">
+                <div class="card @color">
+                    <div class="card-content">
+                        <div class="row gx-2 gy-1 mb-1">
+                            <div class="col-md-9">
+                                <h4 class="card-title mb-0">Cliente: @item.cliente</h4>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <p class="mb-0 small text-muted">@item.fec_act</p>
+                            </div>
+                        </div>
+                        <hr />
+                        <div class="row gx-2 gy-1 align-items-start">
+                            <div class="col-md-9">
+                                <div class="row gx-2 gy-1 mb-1">
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>SCN:</strong> @item.num_scn</p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>Orden:</strong> @item.ord_rel</p>
+                                    </div>
+                                </div>
+                                <div class="row gx-2 gy-1 mb-1">
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>Estatus GNX:</strong> @item.estado @item.estado_gnx</p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>Estado Entrega:</strong> @item.estatus @item.estatus_ord_rel</p>
+                                    </div>
+                                </div>
+                                <div class="row gx-2 gy-1">
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>Estatus RT:</strong> @item.rt_stat @item.estado_rt</p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p class="mb-0"><strong>Evento:</strong> @item.cod_mot @item.motivo</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <button type="button" class="btn btn-primary btn-lg w-100"
+                                        onclick="verDetalleApi('@item.ord_rel')">
+                                    <i class="bi bi-info-circle"></i> Detalle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i> No se encontraron órdenes para la carga seleccionada.
+        </div>
+    }
+</div>
+
+<div class="modal fade" id="detalleOrdenModal" tabindex="-1" aria-labelledby="detalleOrdenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detalleOrdenModalLabel">Detalle de Orden</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="detalleOrdenModalBody">
+                <div class="text-center">
+                    <span class="spinner-border" role="status"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+
+        .card-container {
+            width: 96%;
+            margin: 0 auto 1rem auto;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease-in-out;
+            background: #fff;
+            min-height: 150px;
+        }
+
+            .card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+            }
+
+        .card-content {
+            padding: 1.2rem 1.5rem;
+            color: #212529;
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .card hr {
+            opacity: 0.15;
+        }
+
+        .bg-success {
+            background: linear-gradient(135deg, #d1e7dd, #badbcc) !important;
+            border-left: 6px solid #198754;
+            color: #0f5132 !important;
+        }
+
+        .bg-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffecb5) !important;
+            border-left: 6px solid #ffca2c;
+            color: #664d03 !important;
+        }
+
+        .bg-danger {
+            background: linear-gradient(135deg, #f8d7da, #f5c2c7) !important;
+            border-left: 6px solid #dc3545;
+            color: #58151c !important;
+        }
+
+        .btn-primary {
+            border-radius: 0.7rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+            .btn-primary:hover {
+                opacity: 0.9;
+                transform: scale(1.03);
+            }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        async function verDetalleApi(ord_rel) {
+            document.getElementById("detalleOrdenModalBody").innerHTML = `
+                <div class="text-center my-3">
+                    <span class="spinner-border" role="status"></span>
+                    <p class="mt-2">Cargando detalle...</p>
+                </div>
+            `;
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('detalleOrdenModal'));
+            modal.show();
+
+            try {
+                const responseCredentials = await fetch("/OracleData/GetCredentials");
+                const dataCredentials = await responseCredentials.json();
+                const { username, password } = dataCredentials;
+
+                const responseEndPoint = await fetch("/OracleData/GetEndPointOLPN");
+                const dataEndPoint = await responseEndPoint.json();
+                const finalUrl = dataEndPoint.endPoint.replace("ORDER_RELEASE", encodeURIComponent(ord_rel));
+
+                const response = await fetch(finalUrl, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": "Basic " + btoa(username + ":" + password),
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data && data.results && data.results.length > 0) {
+                    mostrarDetalleEnModal(data.results, ord_rel);
+                } else {
+                    mostrarDetalleEnModal([], ord_rel);
+                }
+
+            } catch (err) {
+                document.getElementById("detalleOrdenModalBody").innerHTML =
+                    `<div class="alert alert-danger">Error al obtener detalle: ${err.message}</div>`;
+            }
+        }
+
+        function mostrarDetalleEnModal(detalles, ord_rel) {
+            const detallesFiltrados = detalles.filter(d => d.LpnStatus === "Shipped");
+
+            let html = `<h6>Orden: ${ord_rel}</h6><table class="table table-bordered mt-3">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>SKU</th>
+                                <th>OLPN</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            if (detallesFiltrados.length === 0) {
+                html += `<tr><td colspan="4" class="text-center">No hay detalles disponibles.</td></tr>`;
+            } else {
+                detallesFiltrados.forEach(d => {
+                    html += `
+                        <tr>
+                            <td>${d.Product}</td>
+                            <td>${d.Sku}</td>
+                            <td>${d.Olpn}</td>
+                            <td>${d.Quantity}</td>
+                        </tr>`;
+                });
+            }
+
+            html += `</tbody></table>`;
+
+            document.getElementById("detalleOrdenModalBody").innerHTML = html;
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('detalleOrdenModal'));
+            modal.show();
+        }
+    </script>
+}

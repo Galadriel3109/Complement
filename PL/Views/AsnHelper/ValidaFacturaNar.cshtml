@@ -1,0 +1,224 @@
+﻿@{
+    ViewData["Title"] = "Valida Factura y NAR";
+}
+
+<div class="container-fluid mt-1 px-2">
+
+    <h2 class="mb-4 text-primary fw-bold">Valida Factura y NAR</h2>
+
+    <div class="input-group mb-3">
+        <input type="text" id="txtLoadNbr" class="form-control" placeholder="Carga de Entrada WMS">
+        <button class="btn btn-primary" id="btnBuscar">🔍</button>
+    </div>
+
+    <table class="table table-bordered table-sm" id="tablaAsn">
+        <thead class="table-light">
+            <tr>
+                <th>ASN</th>
+                <th>Factura</th>
+                <th>Monto</th>
+                <th>País</th>
+                <th>NAR</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+</div>
+
+<div class="modal fade" id="modalNar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Capturar NAR</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label><b>NAR</b></label>
+                    <input type="text" id="txtNar" class="form-control" placeholder="Captura NAR">
+                </div>
+
+                <div id="previewLegacy" class="mt-3"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-info" id="btnValidarNar">Validar</button>
+                <button class="btn btn-success" id="btnConfirmarNar" disabled>Confirmar</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentAsn = null;
+
+    function abrirCaptura(asn){
+        currentAsn = asn;
+
+        $("#txtNar").val("");
+        $("#previewLegacy").html("");
+        $("#btnConfirmarNar").prop("disabled", true);
+
+        new bootstrap.Modal(document.getElementById('modalNar')).show();
+    }
+
+    $("#txtLoadNbr").keypress(function(e){
+        if(e.key === "Enter"){
+            buscarAsn();
+        }
+    });
+
+    $("#btnBuscar").click(function(){
+        buscarAsn();
+    });
+
+    function buscarAsn(){
+        let loadNbr = $("#txtLoadNbr").val();
+
+        if(!loadNbr){
+            Swal.fire("Captura LoadNbr");
+            return;
+        }
+
+        $.get(`/AsnHelper/GetAsnInfoByLoad?loadNbr=${loadNbr}`)
+        .done(function(data){
+
+            let lista = data;
+
+            let tbody = $("#tablaAsn tbody");
+            tbody.empty();
+
+            if(lista.length === 0){
+                tbody.append(`<tr><td colspan="6" class="text-center">Sin resultados</td></tr>`);
+                return;
+            }
+
+            lista.forEach(x => {
+                tbody.append(`
+                    <tr>
+                        <td>${x.numAsn}</td>
+                        <td>${x.factura}</td>
+                        <td>${x.monto}</td>
+                        <td>${x.pais}</td>
+                        <td>${x.nar ?? ""}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick='abrirCaptura(${JSON.stringify(x)})'>
+                                Capturar NAR
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+
+        })
+        .fail(err => Swal.fire("Error", err.responseText, "error"));
+    }
+
+    $(document).on("click", "#btnValidarNar", function(){
+
+        let nar = $("#txtNar").val();
+
+        if(!nar){
+            Swal.fire({ icon: 'warning', title: 'NAR requerido' });
+            return;
+        }
+
+        currentAsn.nar = nar;
+
+        Swal.fire({
+            title: 'Validando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        $.ajax({
+            url: '/AsnHelper/GetLegacyInfo',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(currentAsn),
+            success: function(data){
+
+                Swal.close();
+
+                // 🔥 ESTE ES EL CAMBIO IMPORTANTE
+                currentAsn = data;
+
+                $("#previewLegacy").html(`
+                    <div class="border p-2">
+                        <p><b>ASN:</b> ${data.numAsn}</p>
+                        <p><b>Factura:</b> ${data.factura}</p>
+                        <p><b>Monto:</b> ${data.monto}</p>
+                        <p><b>País:</b> ${data.pais}</p>
+                        <p><b>NAR:</b> ${data.nar}</p>
+                    </div>
+                `);
+
+                $("#btnConfirmarNar").prop("disabled", false);
+
+            },
+            error: function(err){
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'NAR inválido',
+                    text: err.responseText
+                });
+
+                $("#btnConfirmarNar").prop("disabled", true);
+            }
+        });
+
+    });
+
+    $(document).on("click", "#btnConfirmarNar", function(){
+
+        let nar = $("#txtNar").val();
+
+        Swal.fire({
+            title: '¿Confirmar envío?',
+            text: `NAR: ${nar}`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, enviar'
+        }).then((result) => {
+
+            if(result.isConfirmed){
+
+                currentAsn.nar = nar;
+
+                $.ajax({
+                    url: '/AsnHelper/PatchAsnById',
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(currentAsn),
+                    success: function(){
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Actualizado',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+
+                        buscarAsn();
+
+                        bootstrap.Modal.getInstance(
+                            document.getElementById('modalNar')
+                        ).hide();
+                    },
+                    error: function(err){
+
+                        Swal.fire('Error', err.responseText, 'error');
+                    }
+                });
+
+            }
+
+        });
+
+    });
+</script>

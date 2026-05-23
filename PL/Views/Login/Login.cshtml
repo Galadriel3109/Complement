@@ -1,0 +1,215 @@
+﻿@model ML.Login.Login
+
+@{
+    ViewData["Title"] = "Login";
+    ViewData["HideFooter"] = true;
+}
+
+<style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .logo-container {
+        background-color: #fff;
+    }
+
+        .logo-container img {
+            max-width: 60%;
+            height: auto;
+        }
+
+    .login-container {
+        background-color: #f8f9fa;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    @@media (max-width: 767px) {
+        body, html
+
+    {
+        overflow: auto;
+    }
+
+    .container-fluid {
+        height: auto;
+    }
+
+    .row.h-100 {
+        height: auto !important;
+    }
+
+    .logo-container {
+        display: none;
+    }
+
+    .login-container {
+        width: 90%;
+        margin: 2rem auto;
+    }
+
+    }
+
+    .brand-name {
+        margin-top: 1.5rem;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #E60B2F;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        letter-spacing: 1px;
+    }
+
+</style>
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-md-6 d-flex align-items-center justify-content-center logo-container">
+            <div class="text-center">
+                <img src="https://clipartcraft.com/images/sears-logo-red.png"
+                     alt="Sears Logo"
+                     class="img-fluid" />
+                <div class="brand-name">Hermes</div>
+            </div>
+        </div>
+
+        <div class="col-md-6 d-flex align-items-center justify-content-center bg-light">
+            <div class="login-container w-75">
+                <h2 class="text-center mb-4">Iniciar Sesión</h2>
+
+                <form asp-action="Login" method="post">
+                    <div class="mb-3">
+                        <label for="usu_id" class="form-label">Usuario</label>
+                        <input asp-for="usu_id" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="usu_pass" class="form-label">Contraseña</label>
+                        <input asp-for="usu_pass" type="password" class="form-control" />
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary">Ingresar</button>
+                    </div>
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger text-center" role="alert">
+                            @ViewBag.Error
+                        </div>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#btnResetPassword').on('click', function() {
+                $('#reset_rfc_ope').val('');
+                $('#reset_new_password').val('');
+                $('#reset_confirm_password').val('');
+                
+                const modal = new bootstrap.Modal(document.getElementById('modalResetPassword'));
+                modal.show();
+            });
+
+            $('#btnConfirmResetPassword').on('click', function() {
+                const rfcOpe = $('#reset_rfc_ope').val();
+                const newPassword = $('#reset_new_password').val();
+                const confirmPassword = $('#reset_confirm_password').val();
+
+                if (!rfcOpe || rfcOpe.trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validación',
+                        text: 'Ingrese el RFC del operador'
+                    });
+                    return;
+                }
+
+                if (!newPassword || newPassword.trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validación',
+                        text: 'Ingrese la nueva contraseña'
+                    });
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validación',
+                        text: 'Las contraseñas no coinciden'
+                    });
+                    return;
+                }
+
+                if (newPassword.length > 16) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validación',
+                        text: 'La contraseña no puede tener más de 16 caracteres'
+                    });
+                    return;
+                }
+
+                const btn = $(this);
+                btn.prop('disabled', true);
+                btn.html('<span class="spinner-border spinner-border-sm" role="status"></span> Procesando...');
+
+                $.ajax({
+                    url: '@Url.Action("ResetPassword", "Login")',
+                    type: 'POST',
+                    data: {
+                        codEmp: 1,
+                        rfcOpe: rfcOpe.trim(),
+                        newPassword: newPassword.trim()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('modalResetPassword'));
+                            if (modal) modal.hide();
+                            $('#reset_rfc_ope').val('');
+                            $('#reset_new_password').val('');
+                            $('#reset_confirm_password').val('');
+                            btn.prop('disabled', false);
+                            btn.html('<i class="bi bi-check-circle"></i> Reestablecer');
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Éxito',
+                                text: response.message || 'Contraseña reestablecida correctamente',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'Error al reestablecer la contraseña'
+                            });
+                        }
+                        btn.prop('disabled', false);
+                        btn.html('<i class="bi bi-check-circle"></i> Reestablecer');
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Error al comunicarse con el servidor'
+                        });
+                        btn.prop('disabled', false);
+                        btn.html('<i class="bi bi-check-circle"></i> Reestablecer');
+                    }
+                });
+            });
+        });
+    </script>
+}

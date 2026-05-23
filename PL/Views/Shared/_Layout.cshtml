@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Complemento</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PL.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+
+    @RenderSection("Styles", required: false)
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-light border-bottom mb-3" style="background-color: #E60B2F;">
+            <div class="container-fluid d-flex align-items-center">
+                <a class="navbar-brand flex-shrink-0" asp-controller="Home" asp-action="Index">
+                    <img src="https://www.vhv.rs/dpng/f/479-4792746_sears-logo-png.png" alt="Logo" style="height: 40px;">
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse flex-grow-1" id="mainNavbar" style="min-width:0;">
+                    <div class="d-flex align-items-center overflow-hidden w-100">
+                        <button type="button" class="scroll-btn left-btn btn btn-sm btn-dark flex-shrink-0 me-1">
+                            <i class="bi bi-caret-left-fill"></i>
+                        </button>
+
+                            <div class="menu-scroll flex-grow-1 mx-1">
+                                <ul id="menuContainer" class="navbar-nav flex-row flex-nowrap mb-0" style="white-space: nowrap;"></ul>
+                            </div>
+
+                        <button type="button" class="scroll-btn right-btn btn btn-sm btn-dark flex-shrink-0 ms-1">
+                            <i class="bi bi-caret-right-fill"></i>
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Context.Session.GetString("usu_id")))
+                {
+                    <div class="dropdown flex-shrink-0 ms-3">
+                        <button class="btn btn-danger dropdown-toggle d-flex align-items-center gap-2"
+                                type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle fs-5"></i>
+                            <span>@Context.Session.GetString("nombre")</span>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 p-2">
+
+                            <li class="px-2 mb-2">
+                                <small class="text-muted">Centro actual:</small><br />
+                                <strong id="almacenActual">
+                                    @Context.Session.GetString("pto_alm")
+                                </strong>
+                            </li>
+
+                            <li><hr class="dropdown-divider"></li>
+
+                            <li class="px-2 mb-2">
+                                <small class="text-muted">Cambiar almacén:</small>
+                                <select id="selectAlmacen" class="form-select form-select-sm mt-1"></select>
+                            </li>
+
+                            <li><hr class="dropdown-divider"></li>
+
+                            <li>
+                                <a class="dropdown-item fw-semibold d-flex align-items-center gap-2"
+                                   asp-controller="Login" asp-action="Logout"
+                                   style="background-color: #87CEFA; color: #E60B2F;">
+                                    <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                }
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-3 flex-grow-1">
+        <main role="main" class="mb-3 py-2">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarMenu()
+            cargarAlmacenes()
+            inicializarScrollMenu()
+        })
+
+        function cargarAlmacenes() {
+            const raw = "@Context.Session.GetString("almacenes")" || ""
+            const almacenes = raw.split(',').filter(x => x)
+
+            const actual = "@Context.Session.GetString("pto_alm")"
+
+            let options = ""
+
+            almacenes.forEach(a => {
+                options += `<option value="${a}" ${a === actual ? "selected" : ""}>${a}</option>`
+            })
+
+            $("#selectAlmacen").html(options)
+        }
+
+        $("#selectAlmacen").on("change", function () {
+
+            const nuevo = $(this).val()
+
+            $.ajax({
+                url: "/Login/ChangeAlmacen",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(nuevo),
+                success: () => {
+                    $("#almacenActual").text(nuevo)
+
+                    Swal.fire({
+                        icon: "success",
+                        title: "Almacén actualizado",
+                        timer: 1200,
+                        showConfirmButton: false
+                    })
+                },
+                error: () => {
+                    Swal.fire("Error", "No se pudo cambiar almacén", "error")
+                }
+            })
+        })
+
+        function cargarMenu() {
+            $.ajax({
+                url: "/User/GetMenu",
+                type: "GET",
+                success: menu => {
+
+                    let html = ""
+
+                    menu.forEach(item => {
+                        html += `
+                            <li class="nav-item me-1">
+                                <a class="nav-link text-white fw-medium small hover-nav py-0 px-2"
+                                   href="/${item.controller}/${item.action}">
+                                    ${item.title}
+                                </a>
+                            </li>`
+                    })
+
+                    $("#menuContainer").html(html)
+
+                    setTimeout(() => {
+                        if (window.updateMenuScroll) {
+                            window.updateMenuScroll()
+                        }
+                    }, 100)
+                },
+                error: () => {
+                    console.error("Error al cargar menú")
+                }
+            })
+        }
+
+        function inicializarScrollMenu() {
+            const menuScroll = document.querySelector(".menu-scroll")
+            const btnLeft = document.querySelector(".left-btn")
+            const btnRight = document.querySelector(".right-btn")
+
+            if (!menuScroll || !btnLeft || !btnRight) return
+
+            const scrollAmount = 200
+
+            function updateScrollButtons() {
+                const scrollWidth = menuScroll.scrollWidth
+                const clientWidth = menuScroll.clientWidth
+
+                if (scrollWidth <= clientWidth) {
+                    btnLeft.style.display = "none"
+                    btnRight.style.display = "none"
+                } else {
+                    btnLeft.style.display = "inline-flex"
+                    btnRight.style.display = "inline-flex"
+                }
+            }
+
+            btnLeft.addEventListener("click", () => {
+                menuScroll.scrollBy({ left: -scrollAmount, behavior: "smooth" })
+            })
+
+            btnRight.addEventListener("click", () => {
+                menuScroll.scrollBy({ left: scrollAmount, behavior: "smooth" })
+            })
+
+            window.updateMenuScroll = updateScrollButtons
+
+            window.addEventListener("resize", updateScrollButtons)
+
+            updateScrollButtons()
+        }
+    </script>
+
+    <style>
+        .menu-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            white-space: nowrap;
+        }
+
+            .menu-scroll::-webkit-scrollbar {
+                display: none;
+            }
+
+        #menuContainer {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            min-width: max-content;
+        }
+
+        @@media (max-width: 991px) {
+            .scroll-btn
+
+        {
+            display: none !important;
+        }
+
+        }
+
+        .scroll-btn {
+            border: none;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            z-index: 10;
+        }
+    </style>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

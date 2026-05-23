@@ -1,0 +1,92 @@
+﻿@using BL.Menu
+@{
+    ViewData["Title"] = "Inicio";
+
+    var usu_id = Context.Session.GetString("usu_id");
+    var cv_area = Context.Session.GetString("cv_area");
+    var sub_rol = Context.Session.GetString("sub_rol");
+    var nombre = Context.Session.GetString("nombre") ?? "Usuario";
+
+}
+
+<div class="container ps-2 mt-4">
+    <div class="mb-4">
+        <h1 class="fw-bold text-primary" style="margin-left: 0.5rem;">Bienvenid@@, @nombre 👋</h1>
+        <p class="text-muted" style="margin-left: 0.5rem;">Selecciona una opción para continuar</p>
+    </div>
+    <div id="menuCards" class="row justify-content-center g-4 mt-4"></div>
+</div>
+
+<style>
+    .menu-card {
+        background-color: white;
+        transition: all 0.25s ease-in-out;
+    }
+
+        .menu-card:hover {
+            background-color: #f0f6ff;
+            box-shadow: 0 0.7rem 1.2rem rgba(0, 0, 0, 0.15);
+            transform: translateY(-4px);
+        }
+
+            .menu-card:hover i {
+                color: #0d6efd !important;
+                transform: scale(1.1);
+                transition: transform 0.2s ease-in-out;
+            }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", cargarMenuCards)
+
+        function cargarMenuCards() {
+            $.ajax({
+                url: "/User/GetMenu",
+                type: "GET",
+                success: menu => {
+
+                    let html = ""
+
+                    menu.forEach(item => {
+
+                        let icons = ""
+                        if (item.icon) {
+                            item.icon.split(" ").forEach(icon => {
+                                if (icon.startsWith('bi-')) {
+                                    icons += `<i class="bi ${icon} display-6 text-primary me-1"></i>`
+                                } else {
+                                    icons += `<i class="fa-solid ${icon} display-6 text-primary me-1"></i>`
+                                }
+                            })
+                        }
+
+                        if(item.title == "Canguro"){
+                            icons = `<h1>🦘</h1>`
+                        }
+
+
+                        html += `
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2 text-center">
+                            <a href="/${item.controller}/${item.action}"
+                               class="menu-card text-decoration-none text-dark d-block p-3 border rounded-4 shadow-sm transition">
+
+                                ${icons}
+
+                                <div class="fw-semibold">${item.title}</div>
+                                <div class="text-muted small">${item.description ?? ""}</div>
+                            </a>
+                        </div>`
+                    })
+
+                    $("#menuCards").html(html)
+                },
+                error: xhr => {
+                    if (xhr.status === 401) {
+                        location.href = "/Login/Login"
+                    }
+                }
+            })
+        }
+    </script>
+}
